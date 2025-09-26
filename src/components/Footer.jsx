@@ -6,7 +6,7 @@ export default function Footer() {
   return (
     <footer className="footer">
       <div className="footer-inner">
-        <span>© {year} AIWebsite</span>
+        <span>© {year} AI Website</span>
         <nav>
           <a href="#privacy">Privacy</a>
           <a href="#terms">Terms</a>

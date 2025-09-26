@@ -100,6 +100,27 @@ body {
   padding: .1rem .35rem;
 }
 
+/* Markdown (Home README) styling */
+.readme-content h1, .readme-content h2, .readme-content h3, .readme-content h4 {
+  line-height: 1.2;
+  font-weight: 600;
+  margin-top: 2.2rem;
+  margin-bottom: .85rem;
+}
+.readme-content h1:first-child { margin-top: 0; }
+.readme-content p { line-height: 1.55; }
+.readme-content ul { padding-left: 1.25rem; }
+.readme-content ul li { margin: .3rem 0; }
+.readme-content a { color: var(--primary); text-decoration: none; }
+.readme-content a:hover { text-decoration: underline; }
+.readme-content hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0 1.75rem; }
+.readme-content table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: .92rem; }
+.readme-content th, .readme-content td { border: 1px solid var(--border); padding: .45rem .55rem; text-align: left; }
+.readme-content thead { background: rgba(255,255,255,0.05); }
+.readme-content pre.code-block { background: #0f1733; padding: .9rem 1rem; border-radius: .6rem; overflow: auto; border: 1px solid var(--border); }
+.readme-content code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: .85rem; }
+.readme-content blockquote { border-left: 4px solid var(--primary-700); margin: 1rem 0; padding: .4rem .85rem; background: #101a38; }
+
 /* Chat page */
 .chat {
   display: flex;

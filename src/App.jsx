@@ -5,11 +5,12 @@ import TitleBar from './components/TitleBar.jsx'
 import Footer from './components/Footer.jsx'
 import Contact from './pages/Contact.jsx'
 import Chat from './pages/Chat.jsx'
+import Home from './pages/Home.jsx'
 
 export default function App() {
   return (
     <div className="app-container">
-      <TitleBar title="AI Website" subtitle="Welcome to your React starter" logoSrc="/logo.png" />
+      <TitleBar title="AI Website" subtitle="Website created entirely with Github Copilot" logoSrc="/logo.png" />
       <MenuBar
         items={[
           { label: 'Home', href: '/' },
@@ -19,20 +20,7 @@ export default function App() {
       />
       <main>
         <Routes>
-          <Route
-            path="/"
-            element={
-              <div className="content">
-                <section>
-                  <h2>Getting Started</h2>
-                  <p>
-                    This starter includes a basic layout with a menu bar, title bar, and footer. Edit
-                    <code> src/App.jsx</code> to customize this page.
-                  </p>
-                </section>
-              </div>
-            }
-          />
+          <Route path="/" element={<Home />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/chat" element={<Chat />} />
         </Routes>

@@ -7,11 +7,11 @@ export default function Contact() {
       <div className="contact-card" role="contentinfo" aria-label="Contact information">
         <div className="contact-name">Rick Weyenberg</div>
         <div className="contact-item">
-          <span className="label">Phone:</span>
+          <span className="label">Phone:&nbsp;</span>
           <a href="tel:+16125551212" aria-label="Call Rick Weyenberg">612-555-1212</a>
         </div>
         <div className="contact-item">
-          <span className="label">Email:</span>
+          <span className="label">Email:&nbsp;</span>
           <a href="mailto:rick@weyenberg.com" aria-label="Email Rick Weyenberg">rick@weyenberg.com</a>
         </div>
       </div>
