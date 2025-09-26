@@ -19,7 +19,10 @@ export default function Chat() {
   ])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [showTyping, setShowTyping] = useState(false)
+  const abortRef = useRef(null) // reserved for aborting in-flight fetch later
   const endRef = useRef(null)
+  const typingTimerRef = useRef(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -28,16 +31,20 @@ export default function Chat() {
   const send = async () => {
     const text = input.trim()
     if (!text || sending) return
-    setSending(true)
+  setSending(true)
+  setShowTyping(true)
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setInput('')
 
     // Try calling backend api
     try {
+      const controller = new AbortController()
+      abortRef.current = controller
       const resp = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }),
+        signal: controller.signal,
       })
 
       if (!resp.ok || !resp.body) {
@@ -48,7 +55,7 @@ export default function Chat() {
       const decoder = new TextDecoder('utf-8')
       let assistantBuffer = ''
       
-      setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
+  setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
 
       while (true) {
         const { value, done } = await reader.read()
@@ -70,7 +77,26 @@ export default function Chat() {
       const reply = assistantReply(text)
       setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
     } finally {
+      abortRef.current = null
       setSending(false)
+      // Hide typing indicator once response completed (buffer filled or fallback)
+      setShowTyping(false)
+    }
+  }
+
+  const handleReset = () => {
+    // Abort streaming fetch if active
+    if (abortRef.current) {
+      try { abortRef.current.abort() } catch (_) {}
+      abortRef.current = null
+    }
+    setMessages([{ role: 'assistant', content: "Hi, I'm your smart chat assistant. How can I help?" }])
+    setInput('')
+    setSending(false)
+    setShowTyping(false)
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = null
     }
   }
 
@@ -84,13 +110,7 @@ export default function Chat() {
   return (
     <div className="content">
       <div className="chat">
-        {sending && (
-          <div className="chat-progress" role="status" aria-live="polite" aria-label="Generating response">
-            <div className="progress-track">
-              <div className="progress-indeterminate" />
-            </div>
-          </div>
-        )}
+        {/* Removed status bar; typing indicator will appear inline below */}
         <div className="chat-window" aria-live="polite">
           {messages.map((m, idx) => (
             <div key={idx} className={`message ${m.role}`}>
@@ -99,6 +119,15 @@ export default function Chat() {
               </div>
             </div>
           ))}
+          {showTyping && (
+            <div className="message assistant" aria-live="polite" aria-label="Assistant is responding">
+              <div className="bubble typing-indicator">
+                <span className="dot" />
+                <span className="dot" />
+                <span className="dot" />
+              </div>
+            </div>
+          )}
           <div ref={endRef} />
         </div>
         <div className="chat-input">
@@ -111,6 +140,9 @@ export default function Chat() {
             disabled={sending}
           />
           <div className="chat-actions">
+            <button type="button" onClick={handleReset} disabled={sending && !abortRef.current} style={{ marginRight: '.5rem', background: '#223455' }} title="Start a new chat">
+              New Chat
+            </button>
             <button onClick={send} disabled={!input.trim() || sending}>
               {sending ? 'Sending…' : 'Send'}
             </button>
