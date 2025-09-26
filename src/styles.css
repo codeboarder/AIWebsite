@@ -198,6 +198,19 @@ body {
 .message.user .bubble { background: #0e2451; border-color: #20335f; }
 .message.assistant .bubble { background: #101a38; border-color: #223055; }
 
+/* Markdown inside assistant bubbles */
+.chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4, .chat-md h5 { margin: .9rem 0 .4rem; font-size: 1.05rem; line-height: 1.25; }
+.chat-md h1 { font-size: 1.15rem; }
+.chat-md p { margin: .5rem 0; line-height: 1.4; }
+.chat-md ul, .chat-md ol { margin: .55rem 0 .65rem .95rem; padding-left: .6rem; }
+.chat-md li { margin: .25rem 0; }
+.chat-md code { background: #0f1733; padding: .15rem .35rem; border-radius: .35rem; font-size: .8rem; border: 1px solid var(--border); }
+.chat-md pre.chat-code { background: #0f1733; padding: .7rem .8rem; border-radius: .6rem; overflow: auto; border: 1px solid var(--border); font-size: .78rem; line-height: 1.35; }
+.chat-md a { color: var(--primary); text-decoration: none; }
+.chat-md a:hover { text-decoration: underline; }
+.chat-md strong { font-weight: 600; }
+.chat-md em { font-style: italic; }
+
 .chat-input {
   display: grid;
   gap: .5rem;

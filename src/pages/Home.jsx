@@ -5,7 +5,7 @@ export default function Home() {
     <div className="content">
       <section>
         <h2>Welcome</h2>
-        <p>This site demonstrates a simple React + Vite setup with a chat interface and Azure OpenAI backend service.</p>
+        <p>This site demonstrates a simple React + Vite setup with a chat interface and Azure OpenAI backend service created entirely with GitHub Copilot.</p>
         <p>
           View the project repository on GitHub:{' '}
           <a href="https://github.com/codeboarder/AIWebsite" target="_blank" rel="noopener noreferrer">

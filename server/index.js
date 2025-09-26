@@ -34,20 +34,16 @@ app.post('/api/chat', async (req, res) => {
 
   if (!endpoint || !apiKey || !deployment) {
     console.warn('[api/chat] Azure OpenAI not configured (missing env)')
-    res.set('Content-Type', 'text/plain; charset=utf-8')
-    res.write(
+    res.status(500).type('text/plain').send(
       'Azure OpenAI not configured. Set AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_API_KEY, and AZURE_OPENAI_DEPLOYMENT.'
     )
-    return res.end()
+    return
   }
 
   try {
-    // Map client messages 1:1; roles should be 'system' | 'user' | 'assistant'
-    const azureMessages = messages.map((m) => ({ role: m.role, content: m.content }))
-
+    const azureMessages = messages.map(m => ({ role: m.role, content: m.content }))
     const url = `${endpoint}/openai/deployments/${deployment}/chat/completions?api-version=${apiVersion}`
-
-    console.log(`[api/chat] -> ${url} messages=${azureMessages.length}`)
+    console.log(`[api/chat] (non-stream) -> ${url} messages=${azureMessages.length}`)
 
     const aoaiResp = await fetch(url, {
       method: 'POST',
@@ -62,27 +58,18 @@ app.post('/api/chat', async (req, res) => {
     })
 
     if (!aoaiResp.ok) {
-      const errText = await aoaiResp.text()
+      const errText = await aoaiResp.text().catch(() => '')
       console.error(`[api/chat] Azure error ${aoaiResp.status}: ${errText}`)
-      res.status(aoaiResp.status)
-      res.set('Content-Type', 'text/plain; charset=utf-8')
-      res.write(`Azure OpenAI error: ${errText}`)
-      return res.end()
+      res.status(aoaiResp.status).type('text/plain').send(`Azure OpenAI error: ${errText}`)
+      return
     }
 
-    const data = await aoaiResp.json()
-    const content = data?.choices?.[0]?.message?.content ?? '(no content)'
-
-    // Return as plain text; client reads as a stream
-    res.set('Content-Type', 'text/plain; charset=utf-8')
-    res.write(content)
-    res.end()
+    const json = await aoaiResp.json()
+    const content = json?.choices?.[0]?.message?.content || ''
+    res.type('text/plain').send(content)
   } catch (e) {
     console.error('[api/chat] Server error:', e)
-    res.status(500)
-    res.set('Content-Type', 'text/plain; charset=utf-8')
-    res.write(`Server error: ${e.message}`)
-    res.end()
+    res.status(500).type('text/plain').send(`Server error: ${e.message}`)
   }
 })
 

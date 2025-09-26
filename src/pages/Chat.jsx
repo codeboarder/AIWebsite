@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { renderMarkdown } from '../lib/markdown.js'
 
 function assistantReply(userText) {
   const trimmed = userText.trim()
@@ -20,7 +21,7 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [showTyping, setShowTyping] = useState(false)
-  const abortRef = useRef(null) // reserved for aborting in-flight fetch later
+  // Abort controller removed along with Stop functionality
   const endRef = useRef(null)
   const typingTimerRef = useRef(null)
 
@@ -36,60 +37,34 @@ export default function Chat() {
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setInput('')
 
-    // Try calling backend api
+    // Non-streaming backend call
     try {
-      const controller = new AbortController()
-      abortRef.current = controller
       const resp = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }),
-        signal: controller.signal,
       })
-
-      if (!resp.ok || !resp.body) {
+      if (!resp.ok) {
         throw new Error(`Bad response: ${resp.status}`)
       }
-
-      const reader = resp.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let assistantBuffer = ''
-      
-  setMessages((prev) => [...prev, { role: 'assistant', content: '' }])
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value, { stream: true })
-        assistantBuffer += chunk
-        setMessages((prev) => {
-          const copy = [...prev]
-          // Update the last assistant message
-          const lastIdx = copy.length - 1
-          if (lastIdx >= 0 && copy[lastIdx].role === 'assistant') {
-            copy[lastIdx] = { ...copy[lastIdx], content: assistantBuffer }
-          }
-          return copy
-        })
-      }
+      const fullText = await resp.text()
+      setShowTyping(false)
+      setMessages((prev) => [...prev, { role: 'assistant', content: fullText }])
     } catch (err) {
-      // Fallback to local assistant response
-      const reply = assistantReply(text)
-      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      if (err?.name === 'AbortError') {
+        // (Should not occur now; abort removed)
+      } else {
+        const reply = assistantReply(text)
+        setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+      }
     } finally {
-      abortRef.current = null
       setSending(false)
-      // Hide typing indicator once response completed (buffer filled or fallback)
       setShowTyping(false)
     }
   }
 
   const handleReset = () => {
-    // Abort streaming fetch if active
-    if (abortRef.current) {
-      try { abortRef.current.abort() } catch (_) {}
-      abortRef.current = null
-    }
+    // Reset conversation
     setMessages([{ role: 'assistant', content: "Hi, I'm your smart chat assistant. How can I help?" }])
     setInput('')
     setSending(false)
@@ -112,13 +87,21 @@ export default function Chat() {
       <div className="chat">
         {/* Removed status bar; typing indicator will appear inline below */}
         <div className="chat-window" aria-live="polite">
-          {messages.map((m, idx) => (
-            <div key={idx} className={`message ${m.role}`}>
-              <div className="bubble">
-                {m.content}
+          {messages.map((m, idx) => {
+            const isAssistant = m.role === 'assistant'
+            const html = isAssistant ? renderMarkdown(m.content) : null
+            return (
+              <div key={idx} className={`message ${m.role}`}>
+                <div className={"bubble" + (isAssistant ? ' chat-md' : '')}>
+                  {isAssistant ? (
+                    <div dangerouslySetInnerHTML={{ __html: html }} />
+                  ) : (
+                    m.content
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           {showTyping && (
             <div className="message assistant" aria-live="polite" aria-label="Assistant is responding">
               <div className="bubble typing-indicator">
@@ -140,7 +123,7 @@ export default function Chat() {
             disabled={sending}
           />
           <div className="chat-actions">
-            <button type="button" onClick={handleReset} disabled={sending && !abortRef.current} style={{ marginRight: '.5rem', background: '#223455' }} title="Start a new chat">
+            <button type="button" onClick={handleReset} disabled={sending} style={{ marginRight: '.5rem', background: '#223455' }} title="Start a new chat">
               New Chat
             </button>
             <button onClick={send} disabled={!input.trim() || sending}>
