@@ -84,6 +84,13 @@ export default function Chat() {
   return (
     <div className="content">
       <div className="chat">
+        {sending && (
+          <div className="chat-progress" role="status" aria-live="polite" aria-label="Generating response">
+            <div className="progress-track">
+              <div className="progress-indeterminate" />
+            </div>
+          </div>
+        )}
         <div className="chat-window" aria-live="polite">
           {messages.map((m, idx) => (
             <div key={idx} className={`message ${m.role}`}>
