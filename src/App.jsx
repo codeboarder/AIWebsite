@@ -7,6 +7,13 @@ import Contact from './pages/Contact.jsx'
 import Chat from './pages/Chat.jsx'
 import Home from './pages/Home.jsx'
 
+/**
+ * App root layout
+ * - TitleBar with logo
+ * - MenuBar for navigation
+ * - Footer with quick links
+ * - Routes for Home, Contact, Chat
+ */
 export default function App() {
   return (
     <div className="app-container">

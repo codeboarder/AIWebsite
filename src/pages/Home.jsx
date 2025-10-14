@@ -1,5 +1,9 @@
 import React from 'react'
 
+/**
+ * Home page
+ * Minimal landing content and a link to the GitHub repo.
+ */
 export default function Home() {
   return (
     <div className="content">

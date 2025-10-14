@@ -1,43 +1,70 @@
 # AI Website
 
-A Vite + React single‑page app with:
+Vite + React single‑page application with a lightweight Express API relay for Azure OpenAI and a persistent, multi‑session chat UI.
 
-* Top navigation (Menu Bar), Title Bar (with optional logo), and Footer
-* Dedicated Contact page with phone + email links
-* Chat page featuring a minimal “copilot” style interface
-  * Streaming style assembly (currently reads full text; can be upgraded to true streaming)
-  * Typing indicator bubble (animated dots) while awaiting a response
-  * New Chat reset button (aborts in‑flight request, clears history)
-  * Scrollable chat window with custom styled scrollbars
-* Azure OpenAI backend stub (Express) keeping secrets server‑side
-* Environment variable support via `.env` (root) + fallback `server/.env`
+## Current Feature Overview
+
+UI / Layout
+
+* Title Bar (logo capable), Menu Bar navigation, Footer
+* Contact page (clickable email / phone links)
+
+Chat Experience
+
+* Multi‑session conversation model (sessions persisted in `localStorage` under `chat_sessions_v1`)
+* Sidebar “History” list (only shows sessions that contain at least one user message; empty/greeting‑only session stays hidden)
+* Rename (✎) and Delete (✕) actions per visible session
+* “Clear Chat” button resets the current session back to greeting (does NOT create a new session)
+* Typing indicator (animated dots) while awaiting backend response
+* Markdown rendering for assistant replies (basic formatting, code blocks, lists, links)
+* Scrollable chat window with custom styled scrollbars
+* Local fallback heuristic replies if backend fails / not configured
+
+Backend / Architecture
+
+* API service under `server/` – non‑streaming Chat Completions relay to Azure OpenAI
+* Keeps API key & endpoint server‑side; frontend only calls `/api/chat`
+* Clean separation: UI can be deployed as static assets; API can scale independently
+
+Persistence
+
+* Per‑session conversations stored locally (no server storage yet)
+* Automatic migration from legacy single history (`chat_history_v1`) to sessions on first load
+
+Observability / Debug
+
+* Optional debug logging via `VITE_CHAT_DEBUG=1` (logs load/persist events, network calls)
+
+Not Currently Enabled
+
+* True token streaming (server sends full answer after model completes; code structured so streaming can be reintroduced later)
+* Creation of new sessions via UI (disabled—history only lists sessions after meaningful user interaction)
 
 ---
 
 ## Quick Start
 
 ```pwsh
-# 1. Install dependencies
+# 1. Install dependencies (root)
 npm install
 
-# 2. (Optional) Create .env for Azure OpenAI
+# 2. Configure environment variables for API (root .env or server/.env)
+#    Copy an example and fill in your Azure values
 Copy-Item .env.example .env
-# Edit .env and fill in values
+# or
+Copy-Item server/.env.example server/.env
 
-# 3. Run frontend (Vite) only
-npm run dev
-
-# Or run API + frontend concurrently (Windows PowerShell helper)
-npm run dev:full
-
-# Alternatively in two terminals:
-# Terminal 1
+# 3. Run API (terminal 1)
 npm run dev:api
-# Terminal 2
+
+# 4. Run UI (terminal 2)
 npm run dev
+
+# (Optional) Single command helper (Windows PowerShell) to start API then UI:
+npm run dev:full
 ```
 
-Open the printed local URL (usually <http://localhost:5173>). The API listens on <http://localhost:3000>.
+Open the printed UI URL (usually <http://localhost:5173>). The API listens on <http://localhost:3000> unless `PORT` is overridden in `.env` or `server/.env`.
 
 ---
 
@@ -46,47 +73,71 @@ Open the printed local URL (usually <http://localhost:5173>). The API listens on
 | Script | Purpose |
 | ------ | ------- |
 | `npm run dev` | Start Vite dev server (frontend only) |
-| `npm run dev:api` | Start Express Azure OpenAI stub on port 3000 |
+| `npm run dev:api` | Start API service in `server/` (Express relay) |
 | `npm run dev:full` | Convenience: launches API then Vite (PowerShell specific) |
 | `npm run build` | Production build (outputs to `dist/`) |
 | `npm run preview` | Serve the built app locally to test prod bundle |
 
 ---
 
-## Azure OpenAI Integration (Backend Stub)
+## Azure OpenAI Integration (API Service)
 
-The Express server (`server/index.js`) exposes `POST /api/chat` and relays messages to Azure OpenAI Chat Completions.
+The API service (`server/index.js`) exposes `POST /api/chat` and relays messages (non‑streaming) to Azure OpenAI Chat Completions. It responds with the assistant content as plain text.
 
-Environment variables (root `.env` recommended):
+Environment variables (set in root `.env` or `server/.env`):
 
 ```text
 AZURE_OPENAI_ENDPOINT=https://<your-resource>.openai.azure.com
-AZURE_OPENAI_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-AZURE_OPENAI_DEPLOYMENT=<your-chat-deployment-name>
-# Optional override:
-AZURE_OPENAI_API_VERSION=2024-06-01
+AZURE_OPENAI_API_KEY=<key>
+AZURE_OPENAI_DEPLOYMENT=<deployment-name>
+AZURE_OPENAI_API_VERSION=2024-06-01   # or a newer supported version
+PORT=3000                              # optional override
 ```
 
-If any required variable is missing, the server returns a plain‑text explanation and the client falls back to heuristic assistant replies.
+If required variables are missing, the endpoint returns a plain text diagnostic; the UI then falls back to heuristic responses.
 
-Security note: Never commit real keys. `.env` is in `.gitignore`.
+Security Notes
+
+* Do NOT commit real keys; keep `api/.env` out of version control.
+* Consider adding rate limiting, request auth, and logging (e.g., Application Insights) before production hardening.
 
 ---
 
 ## Chat Page Behavior
 
-* User messages and assistant replies kept in local component state (`src/pages/Chat.jsx`).
-* While waiting on a response, an inline typing indicator bubble (three animated dots) is shown.
-* A temporary empty assistant message is inserted and progressively filled as chunks are decoded (currently the backend returns full text; logic is ready for streaming adaptation).
-* Reset via “New Chat” button clears state and aborts any ongoing fetch (uses `AbortController`).
-* Press Enter to send; Shift+Enter inserts a newline.
+State & Persistence
+
+* Sessions stored locally (`localStorage: chat_sessions_v1`).
+* Only sessions containing at least one user message appear in the History sidebar.
+* Clearing a chat keeps the session object but resets messages to the greeting.
+
+Interaction
+
+* Enter to send; Shift+Enter inserts newline.
+* Typing indicator shows while awaiting the API.
+* Assistant replies are rendered with lightweight Markdown.
+* Rename or delete sessions via icon buttons; deletion re-selects a remaining session (or creates a fresh hidden greeting session if all are removed).
+
+Recovery & Fallback
+
+* If the API fails (network / config), a heuristic assistant reply is generated client-side.
+
+### Current Limitations
+
+* Non‑streaming responses (full assistant reply delivered after model completes).
+* No server‑side persistence or user identity scoping.
+* Sessions stored entirely client-side (cleared by browser storage wipes / different device).
 
 ### Possible Future Enhancements
-* True streaming support (server `stream: true` + server-sent parsing)
-* Persist chat history (localStorage or backend)
-* System / persona prompt selection
-* Error retry + partial rollback
-* Markdown rendering for assistant responses
+
+* True streaming (SSE) reintroduction.
+* Export / import sessions (JSON download / upload).
+* Token usage & cost estimation per session.
+* Session search / filter & pinning.
+* Backend persistence + authentication (per-user history).
+* System / persona prompt presets.
+* Syntax highlighting in code blocks.
+* Rate limit & error retry strategy.
 
 ---
 
@@ -94,19 +145,23 @@ Security note: Never commit real keys. `.env` is in `.gitignore`.
 
 ```text
 AIWebsite/
-├─ index.html           # HTML entry
-├─ vite.config.js       # Vite config + /api proxy
-├─ package.json
+├─ index.html              # HTML entry
+├─ vite.config.js          # Vite configuration
+├─ package.json            # Dependencies & scripts
 ├─ server/
-│  └─ index.js          # Express Azure OpenAI relay
+│  ├─ index.js             # Azure OpenAI relay (non‑streaming)
+│  └─ .env.example         # Example env vars for server only (optional)
 ├─ src/
-│  ├─ main.jsx          # React root
-│  ├─ App.jsx           # Layout + routing
-│  ├─ components/       # MenuBar, TitleBar, Footer
-│  ├─ pages/            # Contact.jsx, Chat.jsx
-│  └─ styles.css        # Global + chat styles
-├─ public/              # Static assets (logo, etc.)
-└─ dist/                # Production build output
+│  ├─ main.jsx             # React root
+│  ├─ App.jsx              # Routing & layout
+│  ├─ components/          # MenuBar, TitleBar, Footer
+│  ├─ pages/
+│  │  ├─ Chat.jsx          # Multi‑session chat UI
+│  │  └─ Contact.jsx
+│  ├─ lib/markdown.js      # Lightweight markdown renderer
+│  └─ styles.css           # Theme & component styles
+├─ public/                 # Static assets (e.g., logo)
+└─ dist/                   # Production build output (UI)
 ```
 
 ---
@@ -119,33 +174,41 @@ AIWebsite/
 | Navigation | Edit links in `src/App.jsx` (MenuBar props or route list). |
 | Theme Colors | Adjust CSS variables at top of `src/styles.css`. |
 | Chat Heuristics | Modify `assistantReply()` in `Chat.jsx` for offline fallback behavior. |
-| Backend Logic | Extend `server/index.js` (add logging, switch to streaming, add auth, etc.). |
+| Sessions Sidebar | Adjust filtering / ordering logic in `Chat.jsx` (e.g., show empty sessions). |
+| Backend Logic | Extend `api/src/index.js` (add logging, streaming, auth, rate limiting). |
+| Markdown Rules | Update `src/lib/markdown.js` to support additional syntax. |
 
 ---
 
 ## Deployment Notes
 
 1. Build the frontend: `npm run build` (outputs static assets in `dist/`).
-2. Deploy `dist/` via static hosting (Azure Static Web Apps, Azure Storage static site, etc.).
-3. Deploy/host the Express server separately (Azure App Service, Container Apps, etc.) and update the frontend fetch base URL (remove Vite dev proxy assumption) or add a reverse proxy.
-4. Set environment variables in the server hosting environment.
+2. Deploy `dist/` (Azure Static Web Apps, Azure Storage Static Website, CDN, etc.).
+3. Deploy the API service (`server/`) separately (Azure App Service, Container Apps, Functions custom handler, etc.).
+4. Configure environment variables (Azure OpenAI credentials) in the API hosting environment.
+5. For production, either:
+   * Host API at the same origin under `/api` (recommended; use reverse proxy), or
+   * Set `VITE_API_BASE_URL` during UI build (e.g., `https://your-api-host`) so the browser fetches the remote API.
 
 For production, consider:
-* Turning on streaming to reduce perceived latency.
-* Adding request validation + rate limiting.
-* CORS configuration if frontend and API origins differ.
-* Logging + tracing (e.g., App Insights) for latency/error metrics.
+
+* Reintroduce streaming to reduce perceived latency.
+* Request validation + rate limiting / WAF.
+* CORS tightening (restrict to UI origin).
+* Observability (App Insights / OpenTelemetry).
+* Authentication (user‑scoped histories if backend persistence added).
 
 ---
 
 ## Troubleshooting
 
-Issue | Check
------ | -----
-No assistant reply | Is API server running (`npm run dev:api`)? Are env vars set? See server console.
-Fallback heuristic always used | Missing or invalid Azure env vars; inspect network tab for `/api/chat` response.
-Port conflict | Vite will auto-pick a new port; verify printed URL.
-Wrong endpoint error | Ensure endpoint ends with `.openai.azure.com` and no trailing slash duplication.
+| Issue | Check |
+| ----- | ----- |
+| No assistant reply | Is API server running (`npm run dev:api`)? Env vars set in `api/.env`? Check API console. |
+| Always heuristic fallback | Network error or Azure credentials invalid; inspect `/api/chat` response body. |
+| History missing after refresh | Confirm `localStorage` not blocked. Check `chat_sessions_v1` key in DevTools > Application (or Storage) panel. |
+| Cannot see new session in sidebar | Sessions appear only after the first user message (design choice). |
+| Wrong endpoint error | Ensure endpoint ends with `.openai.azure.com` (no duplicate trailing slash). |
 
 ---
 

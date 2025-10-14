@@ -1,5 +1,10 @@
 import React from 'react'
 
+/**
+ * TitleBar
+ * Displays an optional logo, a title, and an optional subtitle.
+ * The logo hides itself if the image fails to load (e.g., missing asset).
+ */
 export default function TitleBar({ title, subtitle, logoSrc, logoAlt }) {
   return (
     <header className="title-bar">

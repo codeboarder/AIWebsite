@@ -5,6 +5,14 @@ import path from 'node:path'
 import dotenv from 'dotenv'
 import fetch from 'node-fetch'
 
+/**
+ * Server bootstrap and configuration
+ *
+ * - Loads environment variables from root .env by default (dotenv/config above)
+ * - Falls back to server/.env if root .env is missing Azure variables
+ * - Exposes a minimal /api/chat endpoint that proxies to Azure OpenAI Chat Completions
+ * - Returns plain text (non-streaming) assistant content for simplicity
+ */
 // If root .env didn't set the variables, also try server/.env as a fallback
 if (!process.env.AZURE_OPENAI_ENDPOINT) {
   const serverEnv = path.resolve(process.cwd(), 'server/.env')
@@ -24,6 +32,9 @@ if (!process.env.AZURE_OPENAI_ENDPOINT) {
 const app = express()
 app.use(express.json())
 
+// POST /api/chat
+// Body: { messages: [{ role: 'user'|'assistant'|'system', content: string }, ...] }
+// Behavior: forwards messages to Azure OpenAI Chat Completions (stream=false) and returns the assistant text.
 app.post('/api/chat', async (req, res) => {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT
   const apiKey = process.env.AZURE_OPENAI_API_KEY
@@ -64,6 +75,7 @@ app.post('/api/chat', async (req, res) => {
       return
     }
 
+    // Example Azure response shape: { choices: [{ message: { role, content } }], ... }
     const json = await aoaiResp.json()
     const content = json?.choices?.[0]?.message?.content || ''
     res.type('text/plain').send(content)

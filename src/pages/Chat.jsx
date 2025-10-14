@@ -1,6 +1,22 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { renderMarkdown } from '../lib/markdown.js'
 
+/**
+ * Chat page
+ *
+ * Responsibilities:
+ * - Renders chat UI with a sidebar of sessions (multi-conversation history)
+ * - Persists sessions in localStorage and migrates from legacy single-history
+ * - Calls backend /api/chat (non-streaming) and renders assistant markdown
+ * - Provides "Clear Chat" to reset current session; no "New Chat" creation UI
+ * - Hides empty sessions in sidebar until the first user message
+ *
+ * Notes:
+ * - Streaming and Stop button functionality were intentionally removed
+ * - DEBUG logging controlled by VITE_CHAT_DEBUG=1
+ */
+
+// Fallback heuristic reply used when the backend call fails
 function assistantReply(userText) {
   const trimmed = userText.trim()
   if (!trimmed) return "I'm here. How can I help today?"
@@ -49,9 +65,11 @@ export default function Chat() {
     }
   }
 
+  // Default assistant greeting for new/cleared sessions
   const defaultGreeting = { role: 'assistant', content: "Hi, I'm your smart chat assistant. How can I help?" }
 
   // Session model: [{id, title, messages:[{role,content}]}]
+  // Load multi-session history from localStorage, or migrate from legacy single-history
   function loadSessions() {
     try {
       const raw = localStorage.getItem(SESSIONS_KEY)
@@ -76,6 +94,7 @@ export default function Chat() {
     return [{ id: generateId(), title: 'New Chat', messages: [defaultGreeting] }]
   }
 
+  // Create a coarse-unique id for sessions (sufficient for client-side use)
   function generateId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8) }
   function deriveTitle(msgs) {
     const firstUser = msgs.find(m => m.role === 'user')
@@ -83,9 +102,11 @@ export default function Chat() {
     return (firstUser.content || '').replace(/\s+/g,' ').trim().slice(0,40) || 'Conversation'
   }
 
+  // React state for sessions and current session selection
   const [sessions, setSessions] = useState(loadSessions)
   const [currentSessionId, setCurrentSessionId] = useState(() => sessions[0]?.id)
   const currentSession = sessions.find(s => s.id === currentSessionId) || sessions[0]
+  // "messages" mirrors the selected session's messages; kept in sync via effects
   const [messages, setMessages] = useState(currentSession?.messages || [defaultGreeting])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
@@ -98,7 +119,7 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Secondary rehydration pass (in case an extension / CSP delayed storage availability or Fast Refresh reset state)
+  // Secondary rehydration pass (in case storage availability or HMR reset state)
   useEffect(() => {
     // Keep messages in sync if session changes (in dev hot reload scenarios)
     setMessages(currentSession.messages)
@@ -130,6 +151,7 @@ export default function Chat() {
     try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)) } catch(_) {}
   }, [sessions])
 
+  // Send the current input to backend; non-streaming response adds one assistant message
   const send = async () => {
     const text = input.trim()
     if (!text || sending) return
@@ -169,6 +191,7 @@ export default function Chat() {
     }
   }
 
+  // Reset the current session to the default greeting
   const handleReset = () => {
     // Clear the current session back to greeting only
     setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, messages: [defaultGreeting] } : s))
@@ -180,11 +203,13 @@ export default function Chat() {
     if (DEBUG) console.log('[chat] Cleared current session')
   }
 
+  // Switch which session is visible/active
   const handleSelectSession = (id) => {
     if (id === currentSessionId) return
     setCurrentSessionId(id)
   }
 
+  // Remove a session; ensures at least one session exists and is selected
   const handleDeleteSession = (e, id) => {
     e.stopPropagation()
     setSessions(prev => {
@@ -203,6 +228,7 @@ export default function Chat() {
     })
   }
 
+  // Rename a session via prompt; truncates to 60 chars
   const handleRenameSession = (e, id) => {
     e.stopPropagation()
     const newTitle = prompt('Rename conversation:')
@@ -210,6 +236,7 @@ export default function Chat() {
     setSessions(prev => prev.map(s => s.id === id ? { ...s, title: newTitle.slice(0,60) } : s))
   }
 
+  // Send on Enter, newline on Shift+Enter
   const onKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()

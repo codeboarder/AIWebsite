@@ -1,5 +1,9 @@
 import React from 'react'
 
+/**
+ * Contact page
+ * Static contact card with accessible labels for phone and email links.
+ */
 export default function Contact() {
   return (
     <div className="content">

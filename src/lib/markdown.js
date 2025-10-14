@@ -1,6 +1,9 @@
 // Minimal markdown to HTML converter for assistant messages.
-// Escapes HTML, supports headings, bold, italics, inline code, fenced code blocks, links, unordered/ordered lists, paragraphs.
-// Keeps implementation lightweight; not full CommonMark.
+// Intent: lightweight rendering for common patterns without heavy dependencies.
+// Security: escapes HTML early and only allows specific constructs.
+// Supported: headings (#..######), bold (**), italics (*), inline code (`),
+// fenced code blocks (```lang ... ```), links [text](https://...), lists, paragraphs.
+// Not a full CommonMark implementation; good enough for assistant replies.
 
 export function renderMarkdown(raw) {
   if (!raw) return ''
