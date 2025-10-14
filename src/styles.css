@@ -131,6 +131,110 @@ body {
   max-height: 72vh; /* still keep an upper bound so page doesn't overflow too tall */
 }
 
+/* Chat with sidebar layout */
+.chat-with-sidebar {
+  flex-direction: row;
+  align-items: stretch;
+  max-height: none;
+  gap: 1rem;
+}
+.chat-sessions {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: rgba(18,23,42,0.55);
+  border-radius: .75rem;
+  padding: .6rem .5rem .7rem;
+  max-height: 72vh;
+}
+.sessions-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .8rem;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  color: var(--muted);
+  padding: 0 .25rem .3rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .4rem;
+}
+.sessions-header .mini {
+  background: #1d2b4d;
+  color: var(--text);
+  border: 1px solid #2c3a5b;
+  border-radius: .5rem;
+  padding: .15rem .55rem .25rem;
+  font-size: .9rem;
+  cursor: pointer;
+}
+.sessions-header .mini:hover { background: #25365e; }
+.sessions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.sessions-list li {
+  border: 1px solid transparent;
+  border-radius: .55rem;
+  background: transparent;
+  transition: background .15s, border-color .15s;
+}
+.sessions-list li.active {
+  background: #132247;
+  border-color: #223863;
+}
+.sessions-list li:hover { background: #152848; }
+.session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .45rem .5rem .45rem .55rem;
+  gap: .4rem;
+}
+.session-title {
+  flex: 1;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-actions { display: flex; gap: .3rem; }
+.session-actions .icon {
+  background: #1e2f52;
+  border: 1px solid #314363;
+  color: var(--muted);
+  border-radius: .45rem;
+  padding: .15rem .4rem .2rem;
+  cursor: pointer;
+  font-size: .7rem;
+}
+.session-actions .icon:hover { background: #274067; color: var(--text); }
+
+.chat-main { flex: 1; display: flex; flex-direction: column; gap: .75rem; }
+
+@media (max-width: 880px) {
+  .chat-with-sidebar { flex-direction: column; }
+  .chat-sessions { flex-direction: row; width: auto; max-height: none; overflow-x: auto; }
+  .sessions-list { flex-direction: row; overflow-x: auto; flex: none; }
+  .sessions-list li { min-width: 160px; }
+  .session-row { padding: .45rem .6rem; }
+}
+
 /* Typing indicator */
 .typing-indicator {
   display: inline-flex;
