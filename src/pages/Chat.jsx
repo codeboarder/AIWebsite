@@ -7,8 +7,8 @@ import { renderMarkdown } from '../lib/markdown.js'
  * Responsibilities:
  * - Renders chat UI with a sidebar of sessions (multi-conversation history)
  * - Persists sessions in localStorage and migrates from legacy single-history
- * - Calls backend /api/chat (non-streaming) and renders assistant markdown
- * - Provides "Clear Chat" to reset current session; no "New Chat" creation UI
+ * - Calls backend /api/chat (non-streaming)
+ * - Provides "New Chat" to start a fresh session without deleting history
  * - Hides empty sessions in sidebar until the first user message
  *
  * Notes:
@@ -111,9 +111,11 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [showTyping, setShowTyping] = useState(false)
+  const [streaming, setStreaming] = useState(false)
   // Abort controller removed along with Stop functionality
   const endRef = useRef(null)
   const typingTimerRef = useRef(null)
+  const abortRef = useRef(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -151,56 +153,59 @@ export default function Chat() {
     try { localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions)) } catch(_) {}
   }, [sessions])
 
-  // Send the current input to backend; non-streaming response adds one assistant message
+  // Send the current input to backend (non-streaming)
   const send = async () => {
     const text = input.trim()
     if (!text || sending) return
-  setSending(true)
-  setShowTyping(true)
-  setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setSending(true)
+    setShowTyping(true)
+    setMessages((prev) => [...prev, { role: 'user', content: text }])
     setInput('')
 
-    // Non-streaming backend call
+    const apiBase = import.meta.env.VITE_API_BASE_URL || ''
+    // Build request body, excluding the UI-only default assistant greeting to avoid polluting the prompt
+    const buildBody = () => {
+      const filtered = messages.filter(m => !(m.role === 'assistant' && m.content === defaultGreeting.content))
+      return JSON.stringify({ messages: [...filtered, { role: 'user', content: text }] })
+    }
     try {
-      const apiBase = import.meta.env.VITE_API_BASE_URL || ''
       const url = `${apiBase}/api/chat`
       if (DEBUG) console.log('[chat] Sending request', { url })
       const resp = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }),
+        body: buildBody(),
       })
-      if (!resp.ok) {
-        throw new Error(`Bad response: ${resp.status}`)
-      }
+      if (!resp.ok) throw new Error(`Bad response: ${resp.status}`)
       const fullText = await resp.text()
       setShowTyping(false)
       setMessages((prev) => [...prev, { role: 'assistant', content: fullText }])
       if (DEBUG) console.log('[chat] Received response length', fullText.length)
     } catch (err) {
-      if (err?.name === 'AbortError') {
-        // (Should not occur now; abort removed)
-      } else {
-        if (DEBUG) console.warn('[chat] Request failed, using heuristic reply', err)
-        const reply = assistantReply(text)
-        setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
-      }
+      if (DEBUG) console.warn('[chat] Request failed, using heuristic reply', err)
+      const reply = assistantReply(text)
+      setShowTyping(false)
+      setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
     } finally {
       setSending(false)
-      setShowTyping(false)
+      setStreaming(false)
     }
   }
 
-  // Reset the current session to the default greeting
-  const handleReset = () => {
-    // Clear the current session back to greeting only
-    setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, messages: [defaultGreeting] } : s))
-    setMessages([defaultGreeting])
+  // No streaming cancellation in non-stream mode
+  const handleStop = () => {}
+
+  // Start a new session without deleting existing history
+  const handleNewChat = () => {
+    const fresh = { id: generateId(), title: 'New Chat', messages: [defaultGreeting] }
+    setSessions(prev => [...prev, fresh])
+    setCurrentSessionId(fresh.id)
+    setMessages(fresh.messages)
     setInput('')
     setSending(false)
     setShowTyping(false)
     if (typingTimerRef.current) { clearTimeout(typingTimerRef.current); typingTimerRef.current = null }
-    if (DEBUG) console.log('[chat] Cleared current session')
+    if (DEBUG) console.log('[chat] Started new session', fresh.id)
   }
 
   // Switch which session is visible/active
@@ -310,11 +315,12 @@ export default function Chat() {
             disabled={sending}
           />
           <div className="chat-actions">
-            <button type="button" onClick={handleReset} disabled={sending} style={{ marginRight: '.5rem', background: '#223455' }} title="Clear current chat">
-              Clear Chat
+            <button type="button" onClick={handleNewChat} disabled={sending} style={{ marginRight: '.5rem', background: '#223455' }} title="Start a new chat">
+              New Chat
             </button>
+            {/* Cancel hidden in non-streaming mode */}
             <button onClick={send} disabled={!input.trim() || sending}>
-              {sending ? 'Sending…' : 'Send'}
+              Send
             </button>
           </div>
         </div>

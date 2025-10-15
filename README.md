@@ -11,20 +11,22 @@ UI / Layout
 
 Chat Experience
 
-* Multi‑session conversation model (sessions persisted in `localStorage` under `chat_sessions_v1`)
-* Sidebar “History” list (only shows sessions that contain at least one user message; empty/greeting‑only session stays hidden)
-* Rename (✎) and Delete (✕) actions per visible session
-* “Clear Chat” button resets the current session back to greeting (does NOT create a new session)
-* Typing indicator (animated dots) while awaiting backend response
-* Markdown rendering for assistant replies (basic formatting, code blocks, lists, links)
-* Scrollable chat window with custom styled scrollbars
-* Local fallback heuristic replies if backend fails / not configured
+* Multi‑session conversation model (sessions persisted in `localStorage` under `chat_sessions_v1`).
+* Sidebar “History” list shows sessions that contain at least one user message (greeting‑only sessions remain hidden).
+* Rename (✎) and Delete (✕) actions per visible session.
+* “New Chat” creates a fresh conversation and switches to it (does not delete existing history).
+* Typing indicator (animated dots) while awaiting backend response.
+* Markdown rendering for assistant replies (basic formatting, code blocks, lists, links).
+* Scrollable chat window with custom styled scrollbars.
+* Local fallback heuristic replies if backend fails / not configured.
 
 Backend / Architecture
 
-* API service under `server/` – non‑streaming Chat Completions relay to Azure OpenAI
-* Keeps API key & endpoint server‑side; frontend only calls `/api/chat`
-* Clean separation: UI can be deployed as static assets; API can scale independently
+* API service under `server/` – non‑streaming Chat Completions relay to Azure OpenAI.
+* Keeps API key & endpoint server‑side; frontend only calls `/api/chat`.
+* Adds a default system prompt if none is provided and trims empty/whitespace messages.
+* Optional generation options are included only when set via environment variables (prevents unsupported parameter errors on some models).
+* Clean separation: UI can be deployed as static assets; API can scale independently.
 
 Persistence
 
@@ -33,12 +35,11 @@ Persistence
 
 Observability / Debug
 
-* Optional debug logging via `VITE_CHAT_DEBUG=1` (logs load/persist events, network calls)
+* Optional debug logging via `VITE_CHAT_DEBUG=1` (logs load/persist events, network calls).
 
 Not Currently Enabled
 
-* True token streaming (server sends full answer after model completes; code structured so streaming can be reintroduced later)
-* Creation of new sessions via UI (disabled—history only lists sessions after meaningful user interaction)
+* Token streaming (server sends the full answer after the model completes; can be reintroduced later).
 
 ---
 
@@ -49,9 +50,7 @@ Not Currently Enabled
 npm install
 
 # 2. Configure environment variables for API (root .env or server/.env)
-#    Copy an example and fill in your Azure values
-Copy-Item .env.example .env
-# or
+#    Copy the example into server/.env and fill in your Azure values
 Copy-Item server/.env.example server/.env
 
 # 3. Run API (terminal 1)
@@ -92,13 +91,21 @@ AZURE_OPENAI_API_KEY=<key>
 AZURE_OPENAI_DEPLOYMENT=<deployment-name>
 AZURE_OPENAI_API_VERSION=2024-06-01   # or a newer supported version
 PORT=3000                              # optional override
+AZURE_OPENAI_SYSTEM_PROMPT="You are a helpful, concise assistant..."   # optional, default provided
+# Optional generation options (only sent if set; omit if your model doesn't support them)
+AZURE_OPENAI_MAX_COMPLETION_TOKENS=1024
+# Legacy fallback (if you already use it): AZURE_OPENAI_MAX_TOKENS=1024
+AZURE_OPENAI_TEMPERATURE=1
+AZURE_OPENAI_TOP_P=0.95
+AZURE_OPENAI_PRESENCE_PENALTY=0.0
+AZURE_OPENAI_FREQUENCY_PENALTY=0.5
 ```
 
 If required variables are missing, the endpoint returns a plain text diagnostic; the UI then falls back to heuristic responses.
 
 Security Notes
 
-* Do NOT commit real keys; keep `api/.env` out of version control.
+* Do NOT commit real keys; keep `.env` / `server/.env` out of version control.
 * Consider adding rate limiting, request auth, and logging (e.g., Application Insights) before production hardening.
 
 ---
@@ -108,15 +115,16 @@ Security Notes
 State & Persistence
 
 * Sessions stored locally (`localStorage: chat_sessions_v1`).
-* Only sessions containing at least one user message appear in the History sidebar.
-* Clearing a chat keeps the session object but resets messages to the greeting.
+* Only sessions with at least one user message appear in the History sidebar.
+* The default assistant greeting isn’t sent to the model (it’s UI-only).
 
 Interaction
 
 * Enter to send; Shift+Enter inserts newline.
 * Typing indicator shows while awaiting the API.
 * Assistant replies are rendered with lightweight Markdown.
-* Rename or delete sessions via icon buttons; deletion re-selects a remaining session (or creates a fresh hidden greeting session if all are removed).
+* “New Chat” creates a new conversation without deleting existing history.
+* Rename or delete sessions via icon buttons; deletion re-selects a remaining session (or adds a fresh hidden greeting session if all are removed).
 
 Recovery & Fallback
 
@@ -130,7 +138,7 @@ Recovery & Fallback
 
 ### Possible Future Enhancements
 
-* True streaming (SSE) reintroduction.
+* Streaming (SSE) reintroduction.
 * Export / import sessions (JSON download / upload).
 * Token usage & cost estimation per session.
 * Session search / filter & pinning.
@@ -175,7 +183,8 @@ AIWebsite/
 | Theme Colors | Adjust CSS variables at top of `src/styles.css`. |
 | Chat Heuristics | Modify `assistantReply()` in `Chat.jsx` for offline fallback behavior. |
 | Sessions Sidebar | Adjust filtering / ordering logic in `Chat.jsx` (e.g., show empty sessions). |
-| Backend Logic | Extend `api/src/index.js` (add logging, streaming, auth, rate limiting). |
+| Backend Logic | Extend `server/index.js` (add logging, auth, rate limiting). |
+| System Prompt | Set `AZURE_OPENAI_SYSTEM_PROMPT` (or include your own system message in requests). |
 | Markdown Rules | Update `src/lib/markdown.js` to support additional syntax. |
 
 ---
@@ -192,7 +201,7 @@ AIWebsite/
 
 For production, consider:
 
-* Reintroduce streaming to reduce perceived latency.
+* Consider streaming to reduce perceived latency (optional feature).
 * Request validation + rate limiting / WAF.
 * CORS tightening (restrict to UI origin).
 * Observability (App Insights / OpenTelemetry).
@@ -204,11 +213,13 @@ For production, consider:
 
 | Issue | Check |
 | ----- | ----- |
-| No assistant reply | Is API server running (`npm run dev:api`)? Env vars set in `api/.env`? Check API console. |
+| No assistant reply | Is API server running (`npm run dev:api`)? Env vars set in `server/.env` (or root `.env`)? Check API console. |
 | Always heuristic fallback | Network error or Azure credentials invalid; inspect `/api/chat` response body. |
 | History missing after refresh | Confirm `localStorage` not blocked. Check `chat_sessions_v1` key in DevTools > Application (or Storage) panel. |
 | Cannot see new session in sidebar | Sessions appear only after the first user message (design choice). |
 | Wrong endpoint error | Ensure endpoint ends with `.openai.azure.com` (no duplicate trailing slash). |
+| Unsupported parameter: max_tokens | Newer Azure models require `max_completion_tokens`. Set `AZURE_OPENAI_MAX_COMPLETION_TOKENS`, or unset old vars. The server only sends options you set. |
+| Unsupported value: temperature | Some deployments only support the default. Unset `AZURE_OPENAI_TEMPERATURE` (recommended), or set to a supported value. |
 
 ---
 
