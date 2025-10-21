@@ -33,6 +33,8 @@ function assistantReply(userText) {
 export default function Chat() {
   const STORAGE_KEY_SINGLE = 'chat_history_v1' // legacy single conversation
   const SESSIONS_KEY = 'chat_sessions_v1'
+  const SIDEBAR_W_KEY = 'chat_sidebar_w_v1'
+  const SIDEBAR_COLLAPSED_KEY = 'chat_sidebar_collapsed_v1'
   const DEBUG = import.meta.env.VITE_CHAT_DEBUG === '1'
   // Helper to safely parse stored history
   function loadStored(reasonCtx) {
@@ -116,10 +118,63 @@ export default function Chat() {
   const endRef = useRef(null)
   const typingTimerRef = useRef(null)
   const abortRef = useRef(null)
+  // Sidebar sizing & collapse
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(SIDEBAR_W_KEY))
+      if (!Number.isNaN(v) && v >= 160 && v <= 480) return v
+    } catch(_){}
+    return 240
+  })
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1' } catch(_) { return false }
+  })
+  const isDraggingRef = useRef(false)
+  const dragStartXRef = useRef(0)
+  const dragStartWRef = useRef(0)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Persist sidebar preferences
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_W_KEY, String(sidebarWidth)) } catch(_){}
+  }, [sidebarWidth])
+  useEffect(() => {
+    try { localStorage.setItem(SIDEBAR_COLLAPSED_KEY, sidebarCollapsed ? '1' : '0') } catch(_){}
+  }, [sidebarCollapsed])
+
+  // Handle drag resize listeners
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!isDraggingRef.current) return
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX
+      const dx = clientX - dragStartXRef.current
+      const next = Math.min(480, Math.max(160, dragStartWRef.current + dx))
+      setSidebarWidth(next)
+    }
+    const onUp = () => { isDraggingRef.current = false }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove)
+    window.addEventListener('touchend', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+  }, [])
+
+  const onResizeStart = (e) => {
+    // If minimized, expand first so dragging adjusts width immediately
+    if (sidebarCollapsed) setSidebarCollapsed(false)
+    isDraggingRef.current = true
+    dragStartXRef.current = e.touches ? e.touches[0].clientX : e.clientX
+    dragStartWRef.current = sidebarWidth
+  }
+  const toggleSidebar = () => setSidebarCollapsed(v => !v)
 
   // Secondary rehydration pass (in case storage availability or HMR reset state)
   useEffect(() => {
@@ -252,9 +307,16 @@ export default function Chat() {
   return (
     <div className="content">
       <div className="chat chat-with-sidebar">
-        <aside className="chat-sessions" aria-label="Chat history">
+        <aside
+          className={"chat-sessions" + (sidebarCollapsed ? ' collapsed' : '')}
+          aria-label="Chat history"
+          style={sidebarCollapsed ? undefined : { width: `${sidebarWidth}px` }}
+        >
           <div className="sessions-header">
             <span>History</span>
+            <button type="button" className="mini" onClick={toggleSidebar} title={sidebarCollapsed ? 'Expand' : 'Collapse'}>
+              {sidebarCollapsed ? '»' : '«'}
+            </button>
           </div>
           <ul className="sessions-list">
             {(() => {
@@ -276,6 +338,7 @@ export default function Chat() {
             })()}
           </ul>
         </aside>
+        <div className="chat-resizer" onMouseDown={onResizeStart} onTouchStart={onResizeStart} aria-hidden="true" />
         <div className="chat-main">
         {/* Removed status bar; typing indicator will appear inline below */}
         <div className="chat-window" aria-live="polite">
