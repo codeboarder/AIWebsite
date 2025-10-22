@@ -1,0 +1,12 @@
+# CODEOWNERS
+#
+# This file defines individuals or teams that are responsible for code in this repository.
+# Update the placeholder below with your GitHub username or team.
+# Learn more: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Example: make the repo owner the default codeowner for everything
+# * @your-github-username
+
+# Example: different owners per path
+# /server/ @backend-team
+# /src/ @frontend-team

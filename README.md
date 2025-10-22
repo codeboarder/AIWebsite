@@ -15,6 +15,7 @@ Chat Experience
 
 * Multi‑session conversation model (sessions persisted in `localStorage` under `chat_sessions_v1`).
 * Sidebar “History” list shows sessions that contain at least one user message (greeting‑only sessions remain hidden).
+* Resizable, collapsible History sidebar with persisted width and state; when collapsed it becomes a thin rail (not fully hidden) with an expand control and a drag handle.
 * Rename (✎) and Delete (✕) actions per visible session.
 * “New Chat” creates a fresh conversation and switches to it (does not delete existing history).
 * Typing indicator (animated dots) while awaiting backend response.
@@ -119,6 +120,7 @@ State & Persistence
 * Sessions stored locally (`localStorage: chat_sessions_v1`).
 * Only sessions with at least one user message appear in the History sidebar.
 * The default assistant greeting isn’t sent to the model (it’s UI-only).
+* Sidebar preferences are persisted: width (`localStorage: chat_sidebar_w_v1`) and collapsed state (`localStorage: chat_sidebar_collapsed_v1`).
 
 Interaction
 
@@ -127,6 +129,11 @@ Interaction
 * Assistant replies are rendered with lightweight Markdown.
 * “New Chat” creates a new conversation without deleting existing history.
 * Rename or delete sessions via icon buttons; deletion re-selects a remaining session (or adds a fresh hidden greeting session if all are removed).
+* History sidebar
+  * Drag the vertical handle to resize; width is clamped to a sensible range.
+  * Click the chevron to collapse into a slim rail; click again to expand.
+  * Even when collapsed, a narrow rail and the drag handle remain so you can expand by dragging.
+  * On small screens (<880px), the history converts to a horizontal list and the resizer is hidden for usability.
 
 Recovery & Fallback
 
@@ -219,6 +226,8 @@ For production, consider:
 | Always heuristic fallback | Network error or Azure credentials invalid; inspect `/api/chat` response body. |
 | History missing after refresh | Confirm `localStorage` not blocked. Check `chat_sessions_v1` key in DevTools > Application (or Storage) panel. |
 | Cannot see new session in sidebar | Sessions appear only after the first user message (design choice). |
+| Sidebar disappeared entirely | It’s minimized, not removed. Click the chevron on the left rail or drag the vertical handle to expand. |
+| Resizer not visible on mobile | Below ~880px width, the resizer is hidden and the history becomes a horizontal strip. |
 | Wrong endpoint error | Ensure endpoint ends with `.openai.azure.com` (no duplicate trailing slash). |
 | Unsupported parameter: max_tokens | Newer Azure models require `max_completion_tokens`. Set `AZURE_OPENAI_MAX_COMPLETION_TOKENS`, or unset old vars. The server only sends options you set. |
 | Unsupported value: temperature | Some deployments only support the default. Unset `AZURE_OPENAI_TEMPERATURE` (recommended), or set to a supported value. |

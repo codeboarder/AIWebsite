@@ -1,0 +1,45 @@
+name: Bug report
+description: File a bug report to help us improve
+labels: [bug]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of the bug.
+      placeholder: What went wrong?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1) Go to ..., 2) Click ..., 3) See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / recordings
+      description: If applicable, add screenshots to help explain your problem.
+  - type: input
+    id: url
+    attributes:
+      label: URL (if applicable)
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: OS / Browser / Node version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant console/server logs.
+      render: shell
