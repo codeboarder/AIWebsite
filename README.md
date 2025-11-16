@@ -1,6 +1,6 @@
 # AIWebsite
 
-A small React playground with two variants:
+This project is used to showcase Github Copilot coding capabilities. All code for all projects in this repo has been generated via Copilot.
 
 - V1: React + Vite app with an Express API for local development.
 - V2: Lightweight single-page React app with Home and Chat sections (front-end only).
